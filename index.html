@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -173,11 +173,6 @@
   @media (prefers-reduced-motion: reduce) {
     .bd-lit .bd-flame { animation: none; transform: none; }
   }
-  .bd-yt {
-    margin: 18px auto 0; width: 100%; max-width: 320px; height: 200px;
-    border-radius: 14px; overflow: hidden; background: #000;
-  }
-  .bd-yt iframe { width: 100%; height: 100%; border: 0; display: block; }
   /* --- मोमबत्ती फूँकने का एनिमेशन --- */
   .bd-lit.bd-blowing .bd-flame { animation: bd-lean 0.6s ease-in forwards; }
   @keyframes bd-lean {
@@ -244,12 +239,6 @@
     transition: opacity 0.35s ease, transform 0.35s ease;
   }
   .reason.hidden { opacity: 0; transform: translateY(6px); }
-  .placeholder {
-    font-family: 'Quicksand', sans-serif;
-    font-style: normal;
-    color: var(--ink-soft);
-    font-size: 15.5px;
-  }
   .finale {
     display: flex;
     flex-direction: column;
@@ -274,10 +263,11 @@
     color: transparent;
   }
   .finale-note {
-    font-family: 'Quicksand', sans-serif;
-    font-size: 14px;
-    line-height: 1.6;
-    color: var(--ink-soft);
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: clamp(18px, 5vw, 21px);
+    line-height: 1.5;
+    color: var(--ink);
     max-width: 340px;
   }
   .count {
@@ -336,7 +326,7 @@
 <div class="wrap">
   <div class="banner">🎁 🎂 🎈</div>
   <h1>Reasons you're <em>loved</em></h1>
-  <p class="sub">Tap the button. Each time, one more reason shows up — there are 11 in all.</p>
+  <p class="sub">Tap the button. Each time, one more reason shows up — there are 10 in all.</p>
 
   <!-- शुभ जन्मदिन + केक (बॉक्स के ऊपर) -->
   <div class="bd-top bd-hidden" id="bdTop">
@@ -365,11 +355,8 @@
     <div class="finale hidden" id="extraText">
       <div class="finale-note">You are so beautiful — take care of yourself and keep that beauty just the way it is. You look so lovely like this.</div>
     </div>
-    <div class="count" id="countText">0 of 11 unlocked</div>
+    <div class="count" id="countText">0 of 10 unlocked</div>
   </div>
-
-  <div class="bd-yt bd-hidden" id="bdYTbox"><div id="bdYT"></div></div>
-  <div id="bdYTmsg" style="display:none;font-size:13px;color:var(--ink-soft);margin-top:8px"></div>
 
   <button id="revealBtn">Reveal a reason</button>
   <div class="footer-note" id="footerNote">Every word above is true</div>
@@ -377,6 +364,13 @@
 </div>
 
 <script>
+  // अगर पेज में कोई गड़बड़ी हो तो ऊपर लाल पट्टी में दिखेगी (जाँच के लिए)
+  window.addEventListener('error', function (e) {
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#c0392b;color:#fff;font:12px/1.4 sans-serif;padding:6px 10px';
+    d.textContent = 'Error: ' + e.message + ' (line ' + e.lineno + ')';
+    document.body.appendChild(d);
+  });
   const reasons = [
     "Because you look so beautiful, like a fairy.",
     "Because your laughter makes even an ordinary day feel like an occasion.",
@@ -407,56 +401,24 @@
   const footer = document.getElementById('footerNote');
   const totalSteps = reasons.length + 2;
 
-  /* ====== आरज़ू गाना (YouTube) ======
-     नीचे अपना YouTube लिंक डालें। खाली छोड़ेंगे तो गाना नहीं बजेगा।
-     YT_START = गाना कितने सेकंड से शुरू करना है (0 = शुरू से) */
-  const YOUTUBE_LINK = 'https://youtu.be/N39UtM_6RfY?si=HuK_nzFCUFpdOrjv';
-  const YT_START = 0;
-  let ytPlayer = null, ytReady = false, ytWant = false;
-  function ytId(u) {
-    const m = (u || '').match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/);
-    return m ? m[1] : '';
-  }
-  function setupYT() {
-    const id = ytId(YOUTUBE_LINK);
-    if (!id) return;
-    document.getElementById('bdYTbox').classList.remove('bd-hidden');
-    const make = () => {
-      ytPlayer = new YT.Player('bdYT', {
-        width: '100%', height: '200', videoId: id,
-        playerVars: { playsinline: 1, start: YT_START, rel: 0 },
-        events: {
-          onReady: () => { ytReady = true; if (ytWant) ytPlayer.playVideo(); },
-          onError: (e) => {
-            const h = document.getElementById('bdYTmsg');
-            h.textContent = 'गाना नहीं चल पाया (error ' + e.data + '). Player पर ▶ दबाकर देखें।';
-            h.style.display = 'block';
-          }
-        }
-      });
-    };
-    if (window.YT && YT.Player) { make(); }
-    else {
-      window.onYouTubeIframeAPIReady = make;
-      const t = document.createElement('script');
-      t.src = 'https://www.youtube.com/iframe_api';
-      document.head.appendChild(t);
-    }
-  }
-  function playYT() { ytWant = true; if (ytReady) { try { ytPlayer.playVideo(); } catch (e) {} } }
-  function stopYT() {
-    ytWant = false;
-    try { if (ytPlayer) ytPlayer.pauseVideo(); } catch (e) {}
-    document.getElementById('bdYTbox').classList.add('bd-hidden');
+
+  // आवाज़ चालू करने के लिए: पहले टैप पर ही साउंड तैयार कर लेते हैं
+  let audioCtx = null;
+  function unlockAudio() {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!audioCtx) audioCtx = new AC();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    } catch (e) {}
   }
 
   // Happy Birthday धुन (बिना किसी ऑडियो फ़ाइल के, सीधे ब्राउज़र में बनती है)
   function playBirthdayTune() {
     try {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return;
-      const ctx = new AC();
-      if (ctx.state === 'suspended') ctx.resume();
+      unlockAudio();
+      const ctx = audioCtx;
+      if (!ctx) return;
       const beat = 0.52;
       const VOLUME = 0.85; // आवाज़: 0 से 1 के बीच, ज़्यादा = तेज़
       const F = { G4: 392, A4: 440, B4: 493.88, C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99 };
@@ -495,14 +457,13 @@
       if (!candlesLit) {
         candlesLit = true;
         cakeEl.classList.add('bd-lit');
-        playYT();
+        unlockAudio();
         btn.textContent = 'Blow out the candles 💨';
         return;
       }
       if (!candlesBlown) {
         candlesBlown = true;
         btn.disabled = true;
-        stopYT();
         playBirthdayTune();
         cakeEl.classList.add('bd-blowing');
         setTimeout(() => {
@@ -587,4 +548,44 @@
         countEl.innerHTML = unlocked + ' of ' + totalSteps + ' unlocked';
         btn.textContent = 'Light the candles 🕯️';
         footer.textContent = 'Every word above is true.';
-        document.getElementById('signature')  
+        document.getElementById('signature').classList.add('show');
+        document.getElementById('bdTop').classList.remove('bd-hidden');
+      }, 200);
+      return;
+    }
+
+    reasonEl.classList.add('hidden');
+    setTimeout(() => {
+      reasonEl.textContent = reasons[order[unlocked]];
+      reasonEl.classList.remove('placeholder');
+      reasonEl.classList.remove('hidden');
+      unlocked++;
+      countEl.innerHTML = unlocked + ' of ' + totalSteps + ' unlocked';
+      if (unlocked === reasons.length) {
+        btn.textContent = 'One more surprise';
+      } else {
+        btn.textContent = 'Reveal another reason';
+      }
+    }, 200);
+  });
+
+  // gentle falling petals, decorative only
+  const petalContainer = document.getElementById('petals');
+  const symbols = ['🌸', '💗', '✨', '💞', '🌹', '🌛', '💥', '🌟', '🎉', '♥️', '🧚', '🪽', '👧'];
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    for (let i = 0; i < 60; i++) {
+      const p = document.createElement('div');
+      p.className = 'petal';
+      p.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+      p.style.left = Math.random() * 100 + 'vw';
+      p.style.animationDuration = (6 + Math.random() * 8) + 's';
+      p.style.animationDelay = (Math.random() * 6) + 's';
+      p.style.fontSize = (14 + Math.random() * 10) + 'px';
+      petalContainer.appendChild(p);
+    }
+  }
+</script>
+
+</body>
+</html>
+
