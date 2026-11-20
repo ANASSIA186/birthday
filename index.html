@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -173,6 +173,53 @@
   @media (prefers-reduced-motion: reduce) {
     .bd-lit .bd-flame { animation: none; transform: none; }
   }
+  .bd-yt {
+    margin: 18px auto 0; width: 100%; max-width: 320px; height: 200px;
+    border-radius: 14px; overflow: hidden; background: #000;
+  }
+  .bd-yt iframe { width: 100%; height: 100%; border: 0; display: block; }
+  /* --- मोमबत्ती फूँकने का एनिमेशन --- */
+  .bd-lit.bd-blowing .bd-flame { animation: bd-lean 0.6s ease-in forwards; }
+  @keyframes bd-lean {
+    to { transform: rotate(45deg) scaleY(0.4); opacity: 0; }
+  }
+  /* --- केक काटने का एनिमेशन (4 बार, हर बार 1 सेकंड के गैप से) --- */
+  .bd-body { position: absolute; inset: 0; }
+  .bd-candle { transition: opacity 0.4s ease; }
+  .bd-cutting .bd-candle { opacity: 0; }
+  .bd-cutline {
+    position: absolute; left: 0; top: 41px; width: 3px; height: 119px;
+    background: var(--bg); transform: scaleY(0); transform-origin: top; opacity: 0;
+  }
+  .bd-knife {
+    position: absolute; left: 0; top: -30px; width: 14px; height: 110px;
+    opacity: 0; z-index: 5; pointer-events: none;
+  }
+  .bd-handle { position: absolute; top: 0; left: 2px; width: 10px; height: 34px; border-radius: 5px; background: #8a5a44; }
+  .bd-blade {
+    position: absolute; top: 34px; left: 0; width: 14px; height: 76px;
+    background: linear-gradient(90deg, #eef2f6, #a9b4bf);
+    clip-path: polygon(0 0, 100% 0, 100% 86%, 50% 100%, 0 86%);
+  }
+  @keyframes bd-knife {
+    0%   { opacity: 0; transform: translateY(-120px); }
+    15%  { opacity: 1; }
+    55%  { transform: translateY(78px); }
+    70%  { opacity: 1; transform: translateY(78px); }
+    100% { opacity: 0; transform: translateY(-120px); }
+  }
+  @keyframes bd-line {
+    0%   { opacity: 1; transform: scaleY(0); }
+    55%  { opacity: 1; transform: scaleY(1); }
+    100% { opacity: 0; transform: scaleY(1); }
+  }
+  .bd-slice { position: absolute; bottom: 0; height: 119px; animation: bd-slide 0.9s ease-in forwards; }
+  .bd-sl { position: absolute; }
+  @keyframes bd-slide {
+    0%   { opacity: 1; transform: none; }
+    25%  { opacity: 1; transform: translate(6px, 0); }
+    100% { opacity: 0; transform: translate(70px, 10px) rotate(10deg); }
+  }
   /* ===== केक वाला हिस्सा खत्म ===== */
 
   .card {
@@ -295,12 +342,16 @@
   <div class="bd-top bd-hidden" id="bdTop">
     <div class="bd-title">शुभ जन्मदिन</div>
     <div class="bd-cake" id="bdCake" aria-hidden="true">
-      <div class="bd-layer bd-l1"></div>
-      <div class="bd-layer bd-l2"></div>
-      <div class="bd-layer bd-l3"></div>
+      <div class="bd-body">
+        <div class="bd-layer bd-l1"></div>
+        <div class="bd-layer bd-l2"></div>
+        <div class="bd-layer bd-l3"></div>
+      </div>
       <div class="bd-candle" style="left:76px"><div class="bd-flame"></div></div>
       <div class="bd-candle" style="left:100px"><div class="bd-flame" style="animation-delay:.07s"></div></div>
       <div class="bd-candle" style="left:124px"><div class="bd-flame" style="animation-delay:.12s"></div></div>
+      <div class="bd-cutline"></div>
+      <div class="bd-knife"><div class="bd-handle"></div><div class="bd-blade"></div></div>
     </div>
   </div>
 
@@ -308,7 +359,7 @@
     <div class="reason placeholder" id="reasonText">Your first reason is waiting — go on, tap below.</div>
     <div class="finale hidden" id="finaleText">
       <div class="finale-gifts">🎁 🎈 🎂 🎉</div>
-      <div class="finale-title">Happy Birthday,<br>Anupriya</div>
+      <div class="finale-title">Happy Birthday,<br>Anu priya</div>
       <div class="credit">Created by Fujail, for you</div>
     </div>
     <div class="finale hidden" id="extraText">
@@ -316,6 +367,9 @@
     </div>
     <div class="count" id="countText">0 of 11 unlocked</div>
   </div>
+
+  <div class="bd-yt bd-hidden" id="bdYTbox"><div id="bdYT"></div></div>
+  <div id="bdYTmsg" style="display:none;font-size:13px;color:var(--ink-soft);margin-top:8px"></div>
 
   <button id="revealBtn">Reveal a reason</button>
   <div class="footer-note" id="footerNote">Every word above is true</div>
@@ -342,6 +396,8 @@
   let order = [pinnedFirstIndex, pinnedSecondIndex, 1, 2, 4, pinnedSixthIndex, pinnedSeventhIndex, lastIndex];
   let unlocked = 0;
   let candlesLit = false;
+  let candlesBlown = false;
+  let cakeCut = false;
 
   const reasonEl = document.getElementById('reasonText');
   const finaleEl = document.getElementById('finaleText');
@@ -351,14 +407,162 @@
   const footer = document.getElementById('footerNote');
   const totalSteps = reasons.length + 2;
 
+  /* ====== आरज़ू गाना (YouTube) ======
+     नीचे अपना YouTube लिंक डालें। खाली छोड़ेंगे तो गाना नहीं बजेगा।
+     YT_START = गाना कितने सेकंड से शुरू करना है (0 = शुरू से) */
+  const YOUTUBE_LINK = 'https://youtu.be/N39UtM_6RfY?si=HuK_nzFCUFpdOrjv';
+  const YT_START = 0;
+  let ytPlayer = null, ytReady = false, ytWant = false;
+  function ytId(u) {
+    const m = (u || '').match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([\w-]{11})/);
+    return m ? m[1] : '';
+  }
+  function setupYT() {
+    const id = ytId(YOUTUBE_LINK);
+    if (!id) return;
+    document.getElementById('bdYTbox').classList.remove('bd-hidden');
+    const make = () => {
+      ytPlayer = new YT.Player('bdYT', {
+        width: '100%', height: '200', videoId: id,
+        playerVars: { playsinline: 1, start: YT_START, rel: 0 },
+        events: {
+          onReady: () => { ytReady = true; if (ytWant) ytPlayer.playVideo(); },
+          onError: (e) => {
+            const h = document.getElementById('bdYTmsg');
+            h.textContent = 'गाना नहीं चल पाया (error ' + e.data + '). Player पर ▶ दबाकर देखें।';
+            h.style.display = 'block';
+          }
+        }
+      });
+    };
+    if (window.YT && YT.Player) { make(); }
+    else {
+      window.onYouTubeIframeAPIReady = make;
+      const t = document.createElement('script');
+      t.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(t);
+    }
+  }
+  function playYT() { ytWant = true; if (ytReady) { try { ytPlayer.playVideo(); } catch (e) {} } }
+  function stopYT() {
+    ytWant = false;
+    try { if (ytPlayer) ytPlayer.pauseVideo(); } catch (e) {}
+    document.getElementById('bdYTbox').classList.add('bd-hidden');
+  }
+
+  // Happy Birthday धुन (बिना किसी ऑडियो फ़ाइल के, सीधे ब्राउज़र में बनती है)
+  function playBirthdayTune() {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      const ctx = new AC();
+      if (ctx.state === 'suspended') ctx.resume();
+      const beat = 0.52;
+      const VOLUME = 0.85; // आवाज़: 0 से 1 के बीच, ज़्यादा = तेज़
+      const F = { G4: 392, A4: 440, B4: 493.88, C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99 };
+      const tune = [
+        ['G4',.75],['G4',.25],['A4',1],['G4',1],['C5',1],['B4',2],
+        ['G4',.75],['G4',.25],['A4',1],['G4',1],['D5',1],['C5',2],
+        ['G4',.75],['G4',.25],['G5',1],['E5',1],['C5',1],['B4',1],['A4',1],
+        ['F5',.75],['F5',.25],['E5',1],['C5',1],['D5',1],['C5',2]
+      ];
+      let t = ctx.currentTime + 0.1;
+      tune.forEach(([n, d]) => {
+        const dur = d * beat;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(VOLUME, t + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.001, t + dur * 0.95);
+        g.connect(ctx.destination);
+        // दो तरंगें मिलाकर आवाज़ भरी हुई और तेज़ सुनाई देती है
+        [['triangle', 0.8], ['square', 0.15]].forEach(([type, level]) => {
+          const o = ctx.createOscillator();
+          const og = ctx.createGain();
+          og.gain.value = level;
+          o.type = type;
+          o.frequency.value = F[n];
+          o.connect(og); og.connect(g);
+          o.start(t); o.stop(t + dur);
+        });
+        t += dur;
+      });
+    } catch (e) {}
+  }
+
   btn.addEventListener('click', () => {
     if (unlocked >= totalSteps) {
+      const cakeEl = document.getElementById('bdCake');
       if (!candlesLit) {
         candlesLit = true;
-        document.getElementById('bdCake').classList.add('bd-lit');
-        btn.textContent = 'All done 🎉';
-        btn.classList.add('done');
+        cakeEl.classList.add('bd-lit');
+        playYT();
+        btn.textContent = 'Blow out the candles 💨';
+        return;
+      }
+      if (!candlesBlown) {
+        candlesBlown = true;
         btn.disabled = true;
+        stopYT();
+        playBirthdayTune();
+        cakeEl.classList.add('bd-blowing');
+        setTimeout(() => {
+          cakeEl.classList.remove('bd-lit', 'bd-blowing');
+          btn.textContent = 'Cut the cake 🔪';
+          btn.disabled = false;
+        }, 700);
+        return;
+      }
+      if (!cakeCut) {
+        cakeCut = true;
+        btn.disabled = true;
+        cakeEl.classList.add('bd-cutting');
+        const knife = cakeEl.querySelector('.bd-knife');
+        const line = cakeEl.querySelector('.bd-cutline');
+        const body = cakeEl.querySelector('.bd-body');
+        const CUTS = [160, 110];   // केक कटने की जगहें (दाईं तरफ़ से)
+        const GAP = 2000;                  // दो कट के बीच का गैप (मिलीसेकंड)
+        const layers = [
+          { l: 0,  r: 210, b: 0,   h: 62, c: 'var(--accent-2)', rad: 14 },
+          { l: 26, r: 184, b: 62,  h: 48, c: 'var(--accent)',   rad: 14 },
+          { l: 52, r: 158, b: 110, h: 9,  c: 'var(--card)',     rad: 6 }
+        ];
+        let prev = 210;
+        CUTS.forEach((x, i) => {
+          setTimeout(() => {
+            knife.style.left = (x - 7) + 'px';
+            line.style.left = (x - 1.5) + 'px';
+            knife.style.animation = 'none';
+            line.style.animation = 'none';
+            void knife.offsetWidth;
+            knife.style.animation = 'bd-knife 0.85s ease-in-out forwards';
+            line.style.animation = 'bd-line 0.85s ease-in-out forwards';
+            setTimeout(() => {
+              const slice = document.createElement('div');
+              slice.className = 'bd-slice';
+              slice.style.left = x + 'px';
+              slice.style.width = (prev - x) + 'px';
+              layers.forEach(L => {
+                const a = Math.max(x, L.l), z = Math.min(prev, L.r);
+                if (z <= a) return;
+                const p = document.createElement('div');
+                p.className = 'bd-sl';
+                const rl = (a === L.l ? L.rad : 0) + 'px';
+                const rr = (z === L.r ? L.rad : 0) + 'px';
+                p.style.cssText = 'left:' + (a - x) + 'px;width:' + (z - a) + 'px;bottom:' + L.b +
+                  'px;height:' + L.h + 'px;background:' + L.c + ';border-radius:' + rl + ' ' + rr + ' ' + rr + ' ' + rl;
+                slice.appendChild(p);
+              });
+              cakeEl.appendChild(slice);
+              body.style.clipPath = 'inset(0 ' + (210 - x) + 'px 0 0)';
+              prev = x;
+              setTimeout(() => slice.remove(), 1000);
+            }, 450);
+          }, i * GAP);
+        });
+        setTimeout(() => {
+          btn.textContent = 'All done 🎉';
+          btn.classList.add('done');
+        }, (CUTS.length - 1) * GAP + 1000);
       }
       return;
     }
@@ -383,43 +587,4 @@
         countEl.innerHTML = unlocked + ' of ' + totalSteps + ' unlocked';
         btn.textContent = 'Light the candles 🕯️';
         footer.textContent = 'Every word above is true.';
-        document.getElementById('signature').classList.add('show');
-        document.getElementById('bdTop').classList.remove('bd-hidden');
-      }, 200);
-      return;
-    }
-
-    reasonEl.classList.add('hidden');
-    setTimeout(() => {
-      reasonEl.textContent = reasons[order[unlocked]];
-      reasonEl.classList.remove('placeholder');
-      reasonEl.classList.remove('hidden');
-      unlocked++;
-      countEl.innerHTML = unlocked + ' of ' + totalSteps + ' unlocked';
-      if (unlocked === reasons.length) {
-        btn.textContent = 'One more surprise';
-      } else {
-        btn.textContent = 'Reveal another reason';
-      }
-    }, 200);
-  });
-
-  // gentle falling petals, decorative only
-  const petalContainer = document.getElementById('petals');
-  const symbols = ['🌸', '💗', '✨', '💞', '🌹', '🌛', '💥', '🌟', '🎉', '♥️', '🧚', '🪽', '👧'];
-  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    for (let i = 0; i < 60; i++) {
-      const p = document.createElement('div');
-      p.className = 'petal';
-      p.textContent = symbols[Math.floor(Math.random() * symbols.length)];
-      p.style.left = Math.random() * 100 + 'vw';
-      p.style.animationDuration = (6 + Math.random() * 8) + 's';
-      p.style.animationDelay = (Math.random() * 6) + 's';
-      p.style.fontSize = (14 + Math.random() * 10) + 'px';
-      petalContainer.appendChild(p);
-    }
-  }
-</script>
-
-</body>
-</html>
+        document.getElementById('signature')  
